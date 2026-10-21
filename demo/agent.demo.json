@@ -1,0 +1,64 @@
+{
+  "_hinweis": "Demo: simulierter DDS (mock_dds.py) im docker compose",
+  "dds": {
+    "url": "http://mock-dds:8803",
+    "insecure": false
+  },
+  "otlp": {
+    "endpoint": "http://otel-collector:4318"
+  },
+  "interval": 15,
+  "resource": {
+    "zos.sysplex.name": "PLEX1"
+  },
+  "metrics": [
+    {
+      "id": "8D0450",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.cpu.utilization",
+      "unit": "%",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D0630",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.users.active",
+      "unit": "{user}",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D0D60",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.users",
+      "unit": "{user}",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D1210",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.transaction.rate",
+      "unit": "{transaction}/s",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D0570",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.workflow",
+      "unit": "%",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D0220",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.delay",
+      "unit": "%",
+      "row_attribute": "zos.system.name"
+    },
+    {
+      "id": "8D0E90",
+      "resource": ",,SYSPLEX",
+      "name": "rmf.io.rate",
+      "unit": "{io}/s"
+    }
+  ]
+}

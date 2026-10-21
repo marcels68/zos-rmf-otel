@@ -1,0 +1,51 @@
+# OpenTelemetry Collector: sammelt RMF-Daten auf zwei Wegen und gibt sie per OTLP weiter.
+receivers:
+  # Weg A: Agent (rmf_otel_agent.py) schickt OTLP
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+  # Weg B: DDS-OpenMetrics-Endpunkt /metrics/m3 direkt abfragen (braucht APAR OA67701)
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: rmf-m3
+          scrape_interval: 15s      # echter DDS: = Monitor-III-MINTIME (meist 100s)
+          scrape_timeout: 10s
+          metrics_path: /metrics/m3
+          scheme: http              # mit AT-TLS: https
+          # basic_auth:
+          #   username: DDSUSER
+          #   password_file: /etc/otelcol/dds-password
+          static_configs:
+            - targets: ["mock-dds:8803"]
+
+processors:
+  batch: {}
+  resource:
+    attributes:
+      - key: zos.sysplex.name
+        value: PLEX1
+        action: insert
+
+exporters:
+  # Prometheus nimmt OTLP direkt an (--web.enable-otlp-receiver)
+  otlphttp/prometheus:
+    metrics_endpoint: http://prometheus:9090/api/v1/otlp/v1/metrics
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+  # Weitere Ziele einfach ergänzen, z. B. Dynatrace, Datadog, Splunk, Elastic, Grafana Cloud:
+  # otlphttp/vendor:
+  #   endpoint: https://otlp.example.com
+  #   headers: { Authorization: "Api-Token ${env:VENDOR_TOKEN}" }
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [resource, batch]
+      exporters: [otlphttp/prometheus, debug]

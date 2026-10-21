@@ -1,0 +1,47 @@
+# Demo: simulierter RMF-DDS -> Agent/Collector (OpenTelemetry) -> Prometheus -> Grafana
+#   docker compose up -d      dann http://localhost:3000 (anonym, Dashboard "z/OS RMF")
+# Echter DDS: mock-dds weglassen, URL in demo/agent.demo.json und
+# collector/otel-collector.yaml (targets) anpassen.
+services:
+  mock-dds:
+    image: python:3.12-slim
+    command: ["python", "/app/mock_dds.py", "--port", "8803", "--mintime", "15"]
+    volumes: ["./:/app:ro"]
+    ports: ["8803:8803"]
+
+  rmf-agent:
+    image: python:3.12-slim
+    command: ["python", "/app/rmf_otel_agent.py", "--config", "/app/demo/agent.demo.json"]
+    volumes: ["./:/app:ro"]
+    environment:
+      - RMF_DDS_PASSWORD=${RMF_DDS_PASSWORD:-}
+    depends_on: [mock-dds, otel-collector]
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.139.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./collector/otel-collector.yaml:/etc/otelcol/config.yaml:ro"]
+    ports: ["4317:4317", "4318:4318"]
+    depends_on: [prometheus]
+
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      - --storage.tsdb.retention.time=15d
+    volumes: ["./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:12.2.1
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/zos-rmf-otel.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]

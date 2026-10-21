@@ -1,0 +1,11 @@
+# Prometheus bekommt alle Daten per OTLP vom Collector, scrapt selbst nichts.
+global:
+  evaluation_interval: 30s
+otlp:
+  # Diese Ressourcen-Attribute werden zu Labels (sonst nur in target_info)
+  promote_resource_attributes:
+    - service.name
+    - zos.sysplex.name
+storage:
+  tsdb:
+    out_of_order_time_window: 10m

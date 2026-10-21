@@ -1,0 +1,24 @@
+{
+  "_hinweis": "Kennwort NICHT hier eintragen, sondern RMF_DDS_PASSWORD setzen. Metrik-IDs vor Gebrauch am eigenen DDS prüfen (http://<dds>:8803/gpm/index oder Metrikbrowser des IBM-RMF-Grafana-Plugins).",
+  "dds": {
+    "url": "http://ddshost.example.com:8803",
+    "user": "DDSUSER",
+    "insecure": false
+  },
+  "otlp": {
+    "endpoint": "http://localhost:4318"
+  },
+  "interval": 100,
+  "resource": {
+    "zos.sysplex.name": "PLEX1"
+  },
+  "metrics": [
+    {"id": "8D0450", "resource": ",,SYSPLEX", "name": "rmf.cpu.utilization",       "unit": "%",     "row_attribute": "zos.system.name"},
+    {"id": "8D0630", "resource": ",,SYSPLEX", "name": "rmf.users.active",          "unit": "{user}", "row_attribute": "zos.system.name"},
+    {"id": "8D0D60", "resource": ",,SYSPLEX", "name": "rmf.users",                 "unit": "{user}", "row_attribute": "zos.system.name"},
+    {"id": "8D1210", "resource": ",,SYSPLEX", "name": "rmf.transaction.rate",      "unit": "{transaction}/s", "row_attribute": "zos.system.name"},
+    {"id": "8D0570", "resource": ",,SYSPLEX", "name": "rmf.workflow",              "unit": "%",     "row_attribute": "zos.system.name"},
+    {"id": "8D0220", "resource": ",,SYSPLEX", "name": "rmf.delay",                 "unit": "%",     "row_attribute": "zos.system.name"},
+    {"id": "8D0E90", "resource": ",,SYSPLEX", "name": "rmf.io.rate",               "unit": "{io}/s"}
+  ]
+}

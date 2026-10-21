@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: zos
+    folder: z/OS
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
