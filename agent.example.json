@@ -9,9 +9,7 @@
     "endpoint": "http://localhost:4318"
   },
   "interval": 100,
-  "resource": {
-    "zos.sysplex.name": "PLEX1"
-  },
+  "resource": {},
   "metrics": [
     {"id": "8D0450", "resource": ",,SYSPLEX", "name": "rmf.cpu.utilization",       "unit": "%",     "row_attribute": "zos.system.name"},
     {"id": "8D0630", "resource": ",,SYSPLEX", "name": "rmf.users.active",          "unit": "{user}", "row_attribute": "zos.system.name"},

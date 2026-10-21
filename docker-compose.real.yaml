@@ -1,0 +1,24 @@
+# Echter DDS statt Simulator. Zugang in .env (Vorlage .env.example), dann:
+#   docker compose -f docker-compose.yaml -f docker-compose.real.yaml up -d
+services:
+  mock-dds:
+    profiles: [mock]          # Simulator nicht starten
+
+  rmf-agent:
+    command: ["python", "/app/rmf_otel_agent.py", "--config", "/app/agent.example.json"]
+    environment:
+      - RMF_DDS_URL=${RMF_DDS_SCHEME:-https}://${RMF_DDS_HOST:?RMF_DDS_HOST in .env setzen}
+      - RMF_DDS_USER=${RMF_DDS_USER:-}
+      - RMF_DDS_PASSWORD=${RMF_DDS_PASSWORD:-}
+      - RMF_INTERVAL=${RMF_INTERVAL:-60}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+
+  otel-collector:
+    volumes: ["./collector/otel-collector-real.yaml:/etc/otelcol/config.yaml:ro"]
+    environment:
+      - RMF_DDS_HOST=${RMF_DDS_HOST:?RMF_DDS_HOST in .env setzen}
+      - RMF_DDS_SCHEME=${RMF_DDS_SCHEME:-https}
+      - RMF_DDS_USER=${RMF_DDS_USER:-}
+      - RMF_DDS_PASSWORD=${RMF_DDS_PASSWORD:-}
+      - RMF_SCRAPE_INTERVAL=${RMF_SCRAPE_INTERVAL:-60s}
+      - RMF_SCRAPE_TIMEOUT=${RMF_SCRAPE_TIMEOUT:-30s}

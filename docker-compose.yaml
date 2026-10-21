@@ -15,7 +15,7 @@ services:
     volumes: ["./:/app:ro"]
     environment:
       - RMF_DDS_PASSWORD=${RMF_DDS_PASSWORD:-}
-    depends_on: [mock-dds, otel-collector]
+    depends_on: [otel-collector]
     restart: unless-stopped
 
   otel-collector:

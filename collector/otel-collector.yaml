@@ -24,11 +24,6 @@ receivers:
 
 processors:
   batch: {}
-  resource:
-    attributes:
-      - key: zos.sysplex.name
-        value: PLEX1
-        action: insert
 
 exporters:
   # Prometheus nimmt OTLP direkt an (--web.enable-otlp-receiver)
@@ -47,5 +42,5 @@ service:
   pipelines:
     metrics:
       receivers: [otlp, prometheus]
-      processors: [resource, batch]
+      processors: [batch]
       exporters: [otlphttp/prometheus, debug]

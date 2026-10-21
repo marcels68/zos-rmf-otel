@@ -82,21 +82,38 @@ Beenden: `docker compose down`.
 
 ## An ein echtes z/OS anschließen
 
-1. **DDS erreichbar?** `curl -u DDSUSER 'http://<dds>:8803/gpm/perform?resource=,,SYSPLEX&id=8D0D60'`
-   (Benutzer an Systemen ohne DDS-Anmeldung weglassen; mit AT-TLS `https`).
-   `/metrics/m3` testen: `curl -u DDSUSER http://<dds>:8803/metrics/m3 | head`.
-2. **Weg B:** in `collector/otel-collector.yaml` das Ziel `mock-dds:8803` durch den DDS ersetzen,
-   `scrape_interval` = Monitor-III-MINTIME (meist `100s`), bei Bedarf `scheme: https` und
-   `basic_auth` mit `password_file` einkommentieren.
-3. **Weg A:** `agent.example.json` kopieren, `dds.url`/`dds.user` setzen, Kennwort per
-   Umgebungsvariable `RMF_DDS_PASSWORD` (nie in die Datei). Metrik-IDs am eigenen DDS prüfen:
-   `http://<dds>:8803/gpm/index` bzw. Metrikbrowser des IBM-RMF-Grafana-Plugins.
+1. **DDS erreichbar?** Mit AT-TLS `https`, sonst `http`; ohne DDS-Anmeldung `-u` weglassen.
    ```sh
-   RMF_DDS_PASSWORD=... python3 rmf_otel_agent.py --config agent.json --once --dry-run   # Probe
-   RMF_DDS_PASSWORD=... python3 rmf_otel_agent.py --config agent.json                    # Betrieb
+   curl -u DDSUSER https://<dds>:8803/metrics/m3 | head -20
+   curl -u DDSUSER 'https://<dds>:8803/gpm/perform?resource=,,SYSPLEX&id=8D0D60'
    ```
-4. **Weitere Ziele** (Dynatrace, Splunk, Elastic, Grafana Cloud ...) als `otlphttp/...`-Exporter
-   in `collector/otel-collector.yaml` eintragen – an z/OS ändert sich nichts.
+   `/metrics/m3` beginnt mit `mvs_rmf_m3_mintime{sysplex="..."} 60 <Zeitstempel>`; die Zahl
+   ist die Monitor-III-MINTIME in Sekunden.
+2. **Zugang eintragen:** `cp .env.example .env` und `RMF_DDS_HOST` (`host:8803`),
+   `RMF_DDS_SCHEME`, `RMF_DDS_USER`, `RMF_DDS_PASSWORD` sowie `RMF_INTERVAL` /
+   `RMF_SCRAPE_INTERVAL` (= MINTIME) setzen. `.env` wird nicht eingecheckt.
+3. **Starten** – Weg A und B gegen den echten DDS, ohne Simulator:
+   ```sh
+   docker compose -f docker-compose.yaml -f docker-compose.real.yaml up -d
+   ```
+   Erste Werte nach ein bis zwei MINTIME-Intervallen in Grafana (<http://localhost:3000>).
+   Prüfen: `docker compose logs otel-collector | tail` (Fehler beim Abholen von `/metrics/m3`),
+   `docker compose logs rmf-agent | tail` (Fehler je Metrik-ID), in Prometheus
+   (<http://localhost:9090>) die Abfrage `mvs_rmf_m3_mintime`.
+4. **Nur der Agent, ohne Docker:**
+   ```sh
+   export RMF_DDS_URL=https://<dds>:8803 RMF_DDS_USER=DDSUSER RMF_DDS_PASSWORD=...
+   python3 rmf_otel_agent.py --config agent.example.json --once --dry-run   # Probe
+   ```
+   Metrik-IDs am eigenen DDS prüfen: `https://<dds>:8803/gpm/index` bzw. Metrikbrowser des
+   IBM-RMF-Grafana-Plugins.
+5. **Weitere Ziele** (Dynatrace, Splunk, Elastic, Grafana Cloud ...) als `otlphttp/...`-Exporter
+   in `collector/otel-collector-real.yaml` eintragen – an z/OS ändert sich nichts.
+
+Beobachtet an einem echten DDS (RMF mit OA67701): `/metrics/m3` kommt als
+`text/plain` (Prometheus-Textformat), jeder Wert trägt den Zeitstempel des Monitor-III-
+Intervalls, und Familien ohne Werte (z. B. Volumes) erscheinen nur mit `# HELP`/`# TYPE`.
+Der Simulator bildet das nach.
 
 ### Agent direkt unter z/OS UNIX
 
@@ -117,7 +134,7 @@ der OTLP-Endpunkt ist der Collector außerhalb (Firewall: ausgehend TCP 4318).
   "dds":   {"url": "http://ddshost:8803", "user": "DDSUSER", "insecure": false},
   "otlp":  {"endpoint": "http://collector:4318", "headers": {}},
   "interval": 100,
-  "resource": {"zos.sysplex.name": "PLEX1"},
+  "resource": {},
   "metrics": [
     {"id": "8D0450", "resource": ",,SYSPLEX", "name": "rmf.cpu.utilization",
      "unit": "%", "row_attribute": "zos.system.name"}
@@ -128,8 +145,10 @@ der OTLP-Endpunkt ist der Collector außerhalb (Firewall: ausgehend TCP 4318).
 - `metrics[].resource`: DDS-Ressource, z. B. `,,SYSPLEX` oder `,SYSA,MVS_IMAGE`.
 - `name`/`unit`: OTel-Name und Einheit; ohne `name` wird er aus der DDS-Beschreibung gebildet.
 - `row_attribute`: Attribut für die Zeilennamen von Listenmetriken („... by MVS image“).
+- `resource`: zusätzliche OTel-Ressourcenattribute. Den Sysplex-Namen setzt der Agent selbst
+  aus der DDS-Antwort (`zos.sysplex.name`).
 - Umgebungsvariablen überschreiben: `RMF_DDS_URL`, `RMF_DDS_USER`, `RMF_DDS_PASSWORD`,
-  `OTEL_EXPORTER_OTLP_ENDPOINT`.
+  `RMF_INTERVAL`, `OTEL_EXPORTER_OTLP_ENDPOINT`.
 - Der Agent meldet jedes Monitor-III-Intervall genau einmal (Zeitstempel = `utcEnd` des DDS);
   Werte wie `NaN`, `Deact` und `*NoData*`-Zeilen werden übersprungen.
 
@@ -144,13 +163,14 @@ python3 -m unittest -v test_agent.py
 
 Umsetzung DDS-Report -> OTLP, Fehlerfälle, XML-Antwort, und Ende-zu-Ende gegen `mock_dds.py`
 (JSON- und XML-Modus) mit einem eingebauten OTLP-Empfänger. Das Demo-Compose wurde
-vollständig durchgespielt (alle Dashboard-Abfragen liefern Daten).
+vollständig durchgespielt (alle Dashboard-Abfragen liefern Daten), ebenso
+`docker-compose.real.yaml` gegen den Simulator mit verlangter Anmeldung (`mock_dds.py --auth`).
 
 ## Stand und Grenzen
 
-- **Nicht gegen einen echten DDS getestet.** JSON-Format und Endpunkte stammen aus IBMs
-  RMF-Grafana-Plugin (Quellcode, github.com/IBM/RMF); das XML-Format ist nachgebildet.
-  Erster Schritt am eigenen System: Punkt 1 oben.
+- An einem echten DDS geprüft ist bisher nur `/metrics/m3` per `curl`. Collector und Agent
+  liefen noch nicht gegen ein echtes System. Das JSON-Format von `/gpm/perform` stammt aus
+  IBMs RMF-Grafana-Plugin (Quellcode, github.com/IBM/RMF); das XML-Format ist nachgebildet.
 - Die Metrik-IDs in `agent.example.json` stammen aus dem Metrikkatalog des IBM-Plugins;
   bitte am eigenen DDS bestätigen.
 - Nur Metriken. Mögliche Ausbaustufen:

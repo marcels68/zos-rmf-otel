@@ -1,1 +1,3 @@
 grafana/dashboards/ibm/
+.env
+__pycache__/
