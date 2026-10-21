@@ -19,8 +19,19 @@ dann eigenes Repo, weil es mit GnuCOBOL nichts zu tun hat).
   Port 8803 dort NICHT (auch nach Freigabe; vermutlich Firewall) und der Sandbox-Proxy schickt
   keine Basic-Auth über HTTP -> Tests gegen echte Systeme lokal beim Nutzer.
 - Echtbetrieb: `docker-compose.real.yaml` + `.env` (Vorlage `.env.example`, nie einchecken);
-  Probelauf gegen `mock_dds.py --auth` ok. Collector und Agent liefen noch nicht gegen den
-  echten DDS. Host-Namen echter Systeme nicht ins Repo.
+  Probelauf gegen `mock_dds.py --auth` ok; Weg A und B beim Nutzer lokal am echten DDS
+  bestätigt (21.10.2026). Host-Namen echter Systeme nicht ins Repo.
+- **Ausbau (21.10.2026, Zweig `smf`):** 16 weitere Agent-Metriken (Using/Delay je Ursache,
+  CSA/ECSA/SQA/ESQA, Central Storage, UIC; IDs aus IBM-Katalog, am echten DDS unbestätigt).
+  SMF: `smf/smf_otel.py` liest Dumps (RDW, VBS-Segmente, optional BDW), wertet 30.4/30.5,
+  80, 119.11/119.12 aus und sendet OTLP-Logs -> Collector -> Loki 3.5. Layouts von
+  pacsys.com/smf (IBM-Tabellen); zIIP-Feld SMF 30 aus adapya-base (pacsys-SMF30 = V1R3, dort
+  Tippfehler bei Offset 80-84). `smf/smf_gen.py` erzeugt Testsätze, `smf/test_smf.py` (18
+  Tests, auch Handsätze nach Offsets). Dashboards per `grafana/build_dashboards.py` (5 Stück).
+  Grafana-Eigenheit: Loki-Momentabfragen kommen als EINE Tabelle -> Pie/Bargauge brauchen
+  `reduceOptions.values=true`, Wertspalte heißt "Value #A". Loki: gleiche Zeile + gleicher
+  Zeitstempel = Duplikat (deshalb System-ID in jeder Zeile), `max_chunk_age: 48h` für alte
+  Dumps. SMF noch nicht mit echten Sätzen getestet.
 
 ## Arbeitsweise
 - Nutzer schreibt Deutsch; Antworten auf Deutsch.

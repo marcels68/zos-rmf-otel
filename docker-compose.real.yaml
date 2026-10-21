@@ -3,6 +3,8 @@
 services:
   mock-dds:
     profiles: [mock]          # Simulator nicht starten
+  smf-demo:
+    profiles: [mock]          # keine erfundenen SMF-Sätze; echte per smf/smf_otel.py einspielen
 
   rmf-agent:
     command: ["python", "/app/rmf_otel_agent.py", "--config", "/app/agent.example.json"]

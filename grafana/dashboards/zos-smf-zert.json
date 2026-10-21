@@ -1,0 +1,1424 @@
+{
+ "uid": "zos-smf-zert",
+ "title": "z/OS Verschlüsselung (zERT, SMF 119)",
+ "tags": [
+  "z/OS",
+  "SMF",
+  "zERT",
+  "TCP/IP",
+  "OpenTelemetry"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 41,
+ "version": 1,
+ "refresh": "30s",
+ "editable": true,
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "system",
+    "label": "System (Regex)",
+    "type": "textbox",
+    "query": ".*",
+    "current": {
+     "text": ".*",
+     "value": ".*"
+    },
+    "hide": 0
+   },
+   {
+    "name": "jobname",
+    "label": "Jobname (Regex)",
+    "type": "textbox",
+    "query": ".*",
+    "current": {
+     "text": ".*",
+     "value": ".*"
+    },
+    "hide": 0
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 2
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "Grundlage: **zERT-Summary (SMF 119.12)** je Sicherheitssitzung und Intervall (Verbindungen = neue im Intervall) und **Verbindungsdetail (SMF 119.11)**. Einstufung *strong / weak / unprotected*: *weak* = SSLv2/v3, TLS 1.0/1.1 oder schwache Verschlüsselung (DES, 3DES, RC2, RC4, keine)."
+   }
+  },
+  {
+   "id": 2,
+   "type": "row",
+   "title": "Schutz der Verbindungen",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 2,
+    "w": 24,
+    "h": 1
+   }
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Verbindungen",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Anteil geschützt",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection!=\"unprotected\" | unwrap zert_connections | __error__=\"\" [$__range])) / sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.9
+       },
+       {
+        "color": "green",
+        "value": 0.99
+       }
+      ]
+     },
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "Ungeschützt",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection=\"unprotected\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Schwach geschützt",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection=\"weak\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 7,
+   "type": "stat",
+   "title": "TLS 1.3",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_tls_version=\"TLSv1.3\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 8,
+   "type": "stat",
+   "title": "Datenvolumen",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 3,
+    "w": 4,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_bytes_in | __error__=\"\" [$__range])) + sum(sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_bytes_out | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "noValue": "0",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "decimals": 1
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value"
+   }
+  },
+  {
+   "id": 9,
+   "type": "timeseries",
+   "title": "Verbindungen nach Schutz",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_protection) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__auto]))",
+     "legendFormat": "{{zert_protection}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 80,
+      "drawStyle": "bars",
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "strong"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "green"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "weak"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "orange"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "unprotected"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 10,
+   "type": "timeseries",
+   "title": "Verbindungen nach Protokoll",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 7,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_protocol) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__auto]))",
+     "legendFormat": "{{zert_protocol}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 80,
+      "drawStyle": "bars",
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 11,
+   "type": "row",
+   "title": "TLS im Detail",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 24,
+    "h": 1
+   }
+  },
+  {
+   "id": 12,
+   "type": "piechart",
+   "title": "TLS-Versionen",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_tls_version) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protocol=\"TLS\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "{{zert_tls_version}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "pieType": "donut",
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "values": [
+      "value",
+      "percent"
+     ]
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   }
+  },
+  {
+   "id": 13,
+   "type": "piechart",
+   "title": "Cipher-Suites",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 16,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_tls_cipher) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protocol=\"TLS\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "{{zert_tls_cipher}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "pieType": "donut",
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "values": [
+      "value",
+      "percent"
+     ]
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   }
+  },
+  {
+   "id": 14,
+   "type": "piechart",
+   "title": "Verschlüsselung",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_tls_encryption) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protocol=\"TLS\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "{{zert_tls_encryption}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "pieType": "donut",
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "values": [
+      "value",
+      "percent"
+     ]
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   }
+  },
+  {
+   "id": 15,
+   "type": "piechart",
+   "title": "Schlüsselaustausch",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 16,
+    "w": 6,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zert_tls_key_exchange) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protocol=\"TLS\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "{{zert_tls_key_exchange}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "pieType": "donut",
+    "legend": {
+     "displayMode": "table",
+     "placement": "right",
+     "values": [
+      "value",
+      "percent"
+     ]
+    },
+    "tooltip": {
+     "mode": "single"
+    }
+   }
+  },
+  {
+   "id": 16,
+   "type": "row",
+   "title": "Handlungsbedarf",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 24,
+    "w": 24,
+    "h": 1
+   }
+  },
+  {
+   "id": 17,
+   "type": "table",
+   "title": "Ungeschützte Verbindungen (Job, Port, Client)",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 25,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zos_job_name, server_port, client_address, network_transport) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection=\"unprotected\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "labelsToFields",
+     "options": {
+      "mode": "columns"
+     }
+    },
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "service_name": true,
+       "Line": true,
+       "id": true,
+       "tsNs": true,
+       "labels": true
+      },
+      "indexByName": {
+       "zos_job_name": 0,
+       "server_port": 1,
+       "client_address": 2,
+       "network_transport": 3,
+       "Value": 5,
+       "Value #A": 6
+      },
+      "renameByName": {
+       "zos_job_name": "Job",
+       "server_port": "Port",
+       "client_address": "Client",
+       "network_transport": "Protokoll",
+       "Value": "Verbindungen",
+       "Value #A": "Verbindungen"
+      }
+     }
+    },
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "Verbindungen",
+        "desc": true
+       }
+      ]
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byRegexp",
+       "options": "(?i).*port.*"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Verbindungen"
+      },
+      "properties": [
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "gradient"
+        }
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "continuous-BlYlRd"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm"
+   }
+  },
+  {
+   "id": 18,
+   "type": "table",
+   "title": "Schwach geschützte Verbindungen",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 25,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zos_job_name, server_port, zert_tls_version, zert_tls_cipher) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection=\"weak\" | unwrap zert_connections | __error__=\"\" [$__range]))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "labelsToFields",
+     "options": {
+      "mode": "columns"
+     }
+    },
+    {
+     "id": "merge",
+     "options": {}
+    },
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "__name__": true,
+       "job": true,
+       "instance": true,
+       "service_name": true,
+       "Line": true,
+       "id": true,
+       "tsNs": true,
+       "labels": true
+      },
+      "indexByName": {
+       "zos_job_name": 0,
+       "server_port": 1,
+       "zert_tls_version": 2,
+       "zert_tls_cipher": 3,
+       "Value": 5,
+       "Value #A": 6
+      },
+      "renameByName": {
+       "zos_job_name": "Job",
+       "server_port": "Port",
+       "zert_tls_version": "Version",
+       "zert_tls_cipher": "Cipher",
+       "Value": "Verbindungen",
+       "Value #A": "Verbindungen"
+      }
+     }
+    },
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "Verbindungen",
+        "desc": true
+       }
+      ]
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "align": "auto"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byRegexp",
+       "options": "(?i).*port.*"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "Verbindungen"
+      },
+      "properties": [
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-background",
+         "mode": "gradient"
+        }
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "continuous-BlYlRd"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "cellHeight": "sm"
+   }
+  },
+  {
+   "id": 19,
+   "type": "bargauge",
+   "title": "Verbindungen je Job",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 33,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(15, sum by (zos_job_name) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__range])))",
+     "legendFormat": "{{zos_job_name}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "Value #A",
+        "desc": true
+       }
+      ]
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byRegexp",
+       "options": "(?i).*port.*"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient",
+    "showUnfilled": true,
+    "valueMode": "color",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "sizing": "manual"
+   }
+  },
+  {
+   "id": 20,
+   "type": "bargauge",
+   "title": "Verbindungen je Server-Port",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 33,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "topk(15, sum by (server_port) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections | __error__=\"\" [$__range])))",
+     "legendFormat": "{{server_port}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "instant": true,
+     "queryType": "instant",
+     "format": "time_series"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "Value #A",
+        "desc": true
+       }
+      ]
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byRegexp",
+       "options": "(?i).*port.*"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "none"
+       },
+       {
+        "id": "decimals",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient",
+    "showUnfilled": true,
+    "valueMode": "color",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "values": true
+    },
+    "minVizHeight": 10,
+    "maxVizHeight": 24,
+    "sizing": "manual"
+   }
+  },
+  {
+   "id": 21,
+   "type": "timeseries",
+   "title": "Kurze Verbindungen (< 10 s) je Job",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 33,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "sum by (zos_job_name) (sum_over_time({service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | unwrap zert_connections_short | __error__=\"\" [$__auto]))",
+     "legendFormat": "{{zos_job_name}}",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "min": 0,
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 80,
+      "drawStyle": "bars",
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   }
+  },
+  {
+   "id": 22,
+   "type": "row",
+   "title": "Einzelsätze",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 24,
+    "h": 1
+   }
+  },
+  {
+   "id": 23,
+   "type": "logs",
+   "title": "Ungeschützte und schwache Sitzungen (Summary)",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 42,
+    "w": 24,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "{service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"summary\" | zos_job_name=~\"$jobname\" | zert_protection=~\"unprotected|weak\"",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "queryType": "range"
+    }
+   ],
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": false,
+    "sortOrder": "Descending",
+    "enableLogDetails": true,
+    "dedupStrategy": "none",
+    "prettifyLogMessage": false
+   }
+  },
+  {
+   "id": 24,
+   "type": "logs",
+   "title": "Verbindungsende (SMF 119.11)",
+   "description": "",
+   "datasource": {
+    "type": "loki",
+    "uid": "loki"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 51,
+    "w": 24,
+    "h": 9
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "{service_name=\"zos-smf-119\"} | zos_smf_id=~\"$system\" | zert_record=\"connection\" | zos_job_name=~\"$jobname\"",
+     "datasource": {
+      "type": "loki",
+      "uid": "loki"
+     },
+     "queryType": "range"
+    }
+   ],
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": false,
+    "sortOrder": "Descending",
+    "enableLogDetails": true,
+    "dedupStrategy": "none",
+    "prettifyLogMessage": false
+   }
+  }
+ ],
+ "links": [
+  {
+   "title": "z/OS",
+   "type": "dashboards",
+   "tags": [
+    "z/OS"
+   ],
+   "asDropdown": true,
+   "includeVars": false,
+   "keepTime": true
+  }
+ ]
+}
