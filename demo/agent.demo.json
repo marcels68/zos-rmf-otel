@@ -57,6 +57,22 @@
       "resource": ",,SYSPLEX",
       "name": "rmf.io.rate",
       "unit": "{io}/s"
-    }
+    },
+    {"id": "8D0520", "resource": ",,SYSPLEX", "name": "rmf.using", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1E00", "resource": ",,SYSPLEX", "name": "rmf.using.processor", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1DA0", "resource": ",,SYSPLEX", "name": "rmf.using.io", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1B90", "resource": ",,SYSPLEX", "name": "rmf.delay.processor", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1AD0", "resource": ",,SYSPLEX", "name": "rmf.delay.io", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1BF0", "resource": ",,SYSPLEX", "name": "rmf.delay.storage", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1A70", "resource": ",,SYSPLEX", "name": "rmf.delay.enqueue", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1B30", "resource": ",,SYSPLEX", "name": "rmf.delay.operator", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1F80", "resource": ",,SYSPLEX", "name": "rmf.workflow.processor", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1F20", "resource": ",,SYSPLEX", "name": "rmf.workflow.io", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D2410", "resource": ",,SYSPLEX", "name": "rmf.storage.csa.utilization", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D2430", "resource": ",,SYSPLEX", "name": "rmf.storage.ecsa.utilization", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D2470", "resource": ",,SYSPLEX", "name": "rmf.storage.sqa.utilization", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D2450", "resource": ",,SYSPLEX", "name": "rmf.storage.esqa.utilization", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1650", "resource": ",,SYSPLEX", "name": "rmf.storage.central.active", "unit": "%", "row_attribute": "zos.system.name"},
+    {"id": "8D1FE0", "resource": ",,SYSPLEX", "name": "rmf.storage.uic", "unit": "s", "row_attribute": "zos.system.name"}
   ]
 }

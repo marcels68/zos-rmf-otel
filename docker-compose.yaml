@@ -1,4 +1,5 @@
-# Demo: simulierter RMF-DDS -> Agent/Collector (OpenTelemetry) -> Prometheus -> Grafana
+# Demo: simulierter RMF-DDS -> Agent/Collector (OpenTelemetry) -> Prometheus -> Grafana,
+#       erfundene SMF-Sätze -> smf_otel.py -> Collector -> Loki -> Grafana
 #   docker compose up -d      dann http://localhost:3000 (anonym, Dashboard "z/OS RMF")
 # Echter DDS: mock-dds weglassen, URL in demo/agent.demo.json und
 # collector/otel-collector.yaml (targets) anpassen.
@@ -18,12 +19,42 @@ services:
     depends_on: [otel-collector]
     restart: unless-stopped
 
+  # SMF-Demo: erzeugt erfundene SMF-Sätze (smf/smf_gen.py), zuerst 6 Stunden rückwirkend,
+  # dann jede Minute neue, und spielt sie über den Collector nach Loki ein
+  smf-demo:
+    image: python:3.12-slim
+    command:
+      - sh
+      - -c
+      - |
+        sleep 15
+        if python /app/smf/loki_has_data.py http://loki:3100 zos-smf-30; then
+          echo "Loki hat schon SMF-Daten, kein Rückwirkend-Import"
+        else
+          python /app/smf/smf_gen.py /tmp/smf.bin --minutes 360 --seed 1 &&
+            python /app/smf/smf_otel.py /tmp/smf.bin --otlp http://otel-collector:4318
+        fi
+        while true; do
+          sleep 60
+          python /app/smf/smf_gen.py /tmp/smf.bin --minutes 1 &&
+            python /app/smf/smf_otel.py /tmp/smf.bin --otlp http://otel-collector:4318
+        done
+    volumes: ["./:/app:ro"]
+    depends_on: [otel-collector]
+    restart: unless-stopped
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.139.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes: ["./collector/otel-collector.yaml:/etc/otelcol/config.yaml:ro"]
     ports: ["4317:4317", "4318:4318"]
-    depends_on: [prometheus]
+    depends_on: [prometheus, loki]
+
+  loki:
+    image: grafana/loki:3.5.5
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes: ["./loki/loki.yaml:/etc/loki/loki.yaml:ro"]
+    ports: ["3100:3100"]
 
   prometheus:
     image: prom/prometheus:v3.7.3
@@ -44,4 +75,4 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["3000:3000"]
-    depends_on: [prometheus]
+    depends_on: [prometheus, loki]

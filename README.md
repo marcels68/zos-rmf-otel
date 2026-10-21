@@ -1,10 +1,19 @@
-# z/OS-Leistungsdaten in OpenTelemetry (RMF Data Portal)
+# z/OS-Leistungs- und SMF-Daten in OpenTelemetry
 
-Prototyp: RMF-Monitor-III-Daten aus dem **RMF Data Portal / Distributed Data Server (DDS)**
-als **OpenTelemetry-Metriken** bereitstellen und in Grafana anzeigen. Lokal komplett
-lauffähig mit einem simulierten DDS; für ein echtes System nur URL und Zugang eintragen.
+Prototyp: z/OS-Daten herstellerneutral über **OpenTelemetry** bereitstellen und in Grafana
+auswerten:
 
-![Dashboard z/OS RMF (OpenTelemetry) mit simulierten Daten](doc/dashboard.png)
+- **RMF Monitor III** aus dem **RMF Data Portal / Distributed Data Server (DDS)** als Metriken
+  (CPU, Workflow/Delay je Ursache, Speicher, Jobs, WLM, Coupling Facility, MSU).
+- **SMF-Sätze** als Logs: **SMF 30** (Jobs/Steps: CPU, zIIP, Laufzeit, Return- und
+  Abend-Codes), **SMF 80** (RACF: Logons, Fehlversuche, Zugriffsverletzungen) und
+  **SMF 119 zERT** (Verschlüsselung jeder TCP/IP-Verbindung: TLS-Version, Cipher, ungeschützte
+  Verbindungen).
+
+Lokal komplett lauffähig mit simuliertem DDS und erfundenen SMF-Sätzen; für ein echtes System
+nur Zugang eintragen bzw. einen SMF-Dump einspielen.
+
+![Dashboard z/OS Übersicht mit simulierten Daten](doc/dashboard.png)
 
 ## OpenTelemetry in fünf Sätzen
 
@@ -58,11 +67,20 @@ docker compose up -d
 ./fetch-ibm-dashboards.sh      # optional: IBMs RMF-Beispieldashboards dazu
 ```
 
-Dann <http://localhost:3000> öffnen (anonymer Zugang, Ordner **z/OS**):
+Dann <http://localhost:3000> öffnen (anonymer Zugang, Ordner **z/OS**, Menü **z/OS** oben
+rechts wechselt zwischen den Dashboards):
 
-- **z/OS RMF (OpenTelemetry)** – eigenes Dashboard: oben Werte vom Agenten (CPU, Benutzer,
-  Transaktionen, Workflow/Delay, I/O je System), unten Werte von `/metrics/m3`
-  (realer Speicher, Coupling Facility, MSU je LPAR, Top-Jobs, WLM-Delays).
+| Dashboard | Inhalt |
+|---|---|
+| **z/OS Übersicht** | Kennzahlen aus RMF und SMF auf einen Blick |
+| **z/OS RMF Detail** | Using/Delay je Ursache und System, Common Storage, realer Speicher, UIC, Top-Jobs (CPU, zIIP, Working Set), WLM-Delays je Dienstklasse und Ursache, Coupling Facility, MSU je LPAR, CPC-Auslastung |
+| **z/OS Jobs (SMF 30)** | beendete Jobs/Steps, Abends, RC > 0, CPU/zIIP, Top-Jobs/-Benutzer/-Programme, Laufzeiten, Jobklassen, Completion-Codes, Abend-Tabelle, Einzelsätze |
+| **z/OS Sicherheit (RACF, SMF 80)** | Logons erfolgreich/fehlgeschlagen, Gründe (Kennwort, gesperrt, unbekannt), Kennwort-Raten (≥ 5 Fehlversuche in 10 min), Fehlversuche je Benutzer/Terminal, Zugriffsverletzungen, Einzelsätze |
+| **z/OS Verschlüsselung (zERT, SMF 119)** | Anteil geschützter Verbindungen, ungeschützt/schwach, TLS-Versionen, Cipher-Suites, Verfahren, Schlüsselaustausch, Tabellen mit Handlungsbedarf (Job, Port, Client), Einzelsätze |
+
+Bilder (simulierte Daten): [RMF Detail](doc/rmf-detail.png), [Jobs](doc/smf-jobs.png),
+[RACF](doc/smf-racf.png), [zERT](doc/smf-zert.png).
+
 - **IBM-Dashboards** (nach `fetch-ibm-dashboards.sh`): z/OS Central/Common Storage,
   Coupling Facility, MSU Capacity, Usage by Job, WLM Workload Delays. Sie laufen unverändert,
   weil die Metriknamen durch den Collector erhalten bleiben.
@@ -73,9 +91,11 @@ Bausteine im Compose:
 |---|---|
 | `mock-dds` | simulierter DDS (`mock_dds.py`): Sysplex PLEX1, Systeme SYSA/SYSB/SYSC, erfundene Werte |
 | `rmf-agent` | `rmf_otel_agent.py` mit `demo/agent.demo.json` (Weg A) |
-| `otel-collector` | OpenTelemetry Collector contrib 0.139: OTLP-Empfang + Scrape `/metrics/m3` (Weg B) |
+| `smf-demo` | erzeugt erfundene SMF-Sätze (`smf/smf_gen.py`, zuerst 6 h rückwirkend, dann jede Minute) und spielt sie mit `smf/smf_otel.py` ein |
+| `otel-collector` | OpenTelemetry Collector contrib 0.139: OTLP-Empfang (Metriken und Logs) + Scrape `/metrics/m3` (Weg B) |
 | `prometheus` | Prometheus 3.7, nimmt OTLP direkt an (`--web.enable-otlp-receiver`) |
-| `grafana` | Grafana 12.2 mit vorkonfigurierter Datenquelle und Dashboards |
+| `loki` | Grafana Loki 3.5 für die SMF-Sätze (OTLP-Empfang unter `/otlp`) |
+| `grafana` | Grafana 12.2 mit vorkonfigurierten Datenquellen und Dashboards |
 
 Prüfen ohne Browser: `curl 'localhost:9090/api/v1/query?query=rmf_cpu_utilization_percent'`.
 Beenden: `docker compose down`.
@@ -127,6 +147,55 @@ python3 rmf_otel_agent.py --config agent.json
 Als Dauerläufer z. B. per BPXBATCH-Started-Task. Der DDS ist dann `http://localhost:8803`;
 der OTLP-Endpunkt ist der Collector außerhalb (Firewall: ausgehend TCP 4318).
 
+## SMF-Sätze auswerten
+
+`smf/smf_otel.py` liest einen SMF-Dump und schickt jeden ausgewerteten Satz als
+OpenTelemetry-Log an den Collector; der leitet ihn an Loki weiter. Jedes Feld wird ein
+Attribut (z. B. `zos.job.name`, `smf30.cpu.total_seconds`, `racf.result`,
+`zert.tls.version`), in Loki als strukturierte Metadaten abfragbar. Nur
+Python-Standardbibliothek.
+
+| SMF | ausgewertet |
+|---|---|
+| 30 Subtyp 4/5 (Step-/Job-Ende) | Job, Job-ID, Step, Programm, Klasse, RACF-Benutzer/-Gruppe, System, Sysplex, CPU TCB/SRB/zIIP, Laufzeit, Completion-Code (`RC0008`, `S0C4`, `U4038`, `FLUSH`), Abend-Reason |
+| 80 (RACF) | Ereignis (`JOBINIT` = RACINIT: TSO-Logon/Jobstart/Anwendung, `ACCESS`, Befehle wie `ALTUSER`), Ergebnis und Grund, Benutzer, Gruppe, Terminal, Job, Verstoß/Warnung, Relocate-Abschnitte (roh) |
+| 119 Subtyp 12 (zERT-Summary) | Schutz (TLS/SSH/IPsec/keiner), Job, Benutzer, Server-/Client-Adresse, Port, Rolle, neue/kurze/aktive Verbindungen, Bytes; TLS: Version, Cipher, Verschlüsselung, MAC, Schlüsselaustausch, Serverschlüssel; SSH: Version, Verfahren; IPsec: IKE-Version, Verfahren |
+| 119 Subtyp 11 (zERT-Verbindung) | Ereignis (Aufbau, Ende, kurze Verbindung), Schutz, Job, Benutzer, lokale/entfernte Adresse und Port, Bytes, TLS-Version und Cipher |
+
+Einstufung `zert.protection`: **unprotected** (keine Verschlüsselung erkannt), **weak**
+(SSLv2/v3, TLS 1.0/1.1 oder DES, 3DES, RC2, RC4, keine Verschlüsselung), sonst **strong**.
+
+### Echte SMF-Daten einspielen
+
+1. **Sätze herausziehen:** `smf/jcl/SMFDUMP.jcl` anpassen (Log Stream mit `IFASMFDL` oder
+   SYS1.MANx mit `IFASMFDP`) und abschicken. Ausgewählt werden nur 30(4,5), 80 und
+   119(11,12). zERT muss in TCP/IP aktiv sein (`GLOBALCONFIG ZERT AGGREGATION`,
+   `SMFCONFIG TYPE119 ZERTSUMMARY ZERTDETAIL`).
+2. **Binär mit RDW holen** – sonst fehlen die Satzlängen:
+   ```
+   ftp> binary
+   ftp> quote site rdw
+   ftp> get 'USERID.SMF.OTEL' smf.bin
+   ```
+3. **Prüfen und einspielen** (Collector aus dem Compose lauscht auf `localhost:4318`):
+   ```sh
+   python3 smf/smf_otel.py smf.bin --print --tz Europe/Berlin | head   # lesbar?
+   python3 smf/smf_otel.py smf.bin --tz Europe/Berlin                   # nach Loki
+   ```
+   `--tz` ist die Zeitzone, in der das System SMF-Zeitstempel schreibt (meist Ortszeit).
+   Loki nimmt je Datenstrom Sätze bis 24 Stunden hinter dem neuesten an
+   (`loki/loki.yaml`, `max_chunk_age`); ältere Dumps zuerst bzw. in zeitlicher Reihenfolge
+   einspielen. Satzlayout prüfen: `smf_otel.py smf.bin --hexdump 80`.
+
+### Herkunft der Satzlayouts
+
+IBM-Tabellen aus dem SMF-Handbuch, wiedergegeben auf
+[pacsys.com/smf](https://www.pacsys.com/smf/): `smf30.htm`, `smf80.htm`,
+`smf119_subtype11.htm`, `smf119_subtype12.htm`. Die Seite zu SMF 30 hat den Stand z/OS V1R3
+und kennt das zIIP-Feld nicht; die zIIP-Zeit (`SMF30_TIME_ON_zIIP`, Offset 116 im
+Prozessorabschnitt) stammt aus `adapya-base` (Software AG, Apache 2.0). Die Tests in
+`smf/test_smf.py` bauen Sätze direkt nach diesen Offsets, unabhängig vom Generator.
+
 ## Konfiguration des Agenten
 
 ```json
@@ -159,6 +228,8 @@ In Prometheus heißen die Metriken nach OTel-Regeln z. B. `rmf_cpu_utilization_p
 
 ```sh
 python3 -m unittest -v test_agent.py
+(cd smf && python3 -m unittest -v test_smf.py)
+python3 grafana/build_dashboards.py      # Dashboards neu erzeugen (nach Änderungen)
 ```
 
 Umsetzung DDS-Report -> OTLP, Fehlerfälle, XML-Antwort, und Ende-zu-Ende gegen `mock_dds.py`
@@ -168,17 +239,24 @@ vollständig durchgespielt (alle Dashboard-Abfragen liefern Daten), ebenso
 
 ## Stand und Grenzen
 
-- An einem echten DDS geprüft ist bisher nur `/metrics/m3` per `curl`. Collector und Agent
-  liefen noch nicht gegen ein echtes System. Das JSON-Format von `/gpm/perform` stammt aus
-  IBMs RMF-Grafana-Plugin (Quellcode, github.com/IBM/RMF); das XML-Format ist nachgebildet.
-- Die Metrik-IDs in `agent.example.json` stammen aus dem Metrikkatalog des IBM-Plugins;
-  bitte am eigenen DDS bestätigen.
-- Nur Metriken. Mögliche Ausbaustufen:
+- **RMF:** Weg A (Agent) und Weg B (`/metrics/m3`) liefern am echten DDS Daten (lokal beim
+  Nutzer, `docker-compose.real.yaml`). Die 16 zusätzlichen Agent-Metriken (Using/Delay je
+  Ursache, Common Storage, UIC) stammen aus dem Metrikkatalog des IBM-RMF-Grafana-Plugins
+  und sind am echten DDS noch nicht bestätigt; eine ID, die der DDS nicht kennt, erscheint
+  im Agent-Log und fehlt im Dashboard, die übrigen laufen weiter.
+- **SMF:** noch nicht mit echten Sätzen getestet, nur mit dem Generator und mit den von Hand
+  nach den IBM-Tabellen gebauten Testsätzen. Erster Schritt: `SMFDUMP.jcl`, dann
+  `smf_otel.py --print`.
+- SMF 80: Relocate-Abschnitte werden nur roh als `racf.reloc.<typ>` mitgegeben (die
+  Bedeutung der Datentypen steht in *RACF Macros and Interfaces*, nicht auf pacsys).
+- SMF kommt per Dump (Batch). Ausbaustufe: echtzeitnah über die SMF-In-Memory-Schnittstelle
+  (IFAMCON/IFAMGET) direkt auf z/OS.
+- Weitere Ausbaustufen:
   - **Traces aus Anwendungen:** z. B. Programmaufrufe (CALL) als Spans melden –
     ein Batchlauf oder eine Transaktion wird dann im selben Trace-Werkzeug sichtbar wie der
     aufrufende Java-/Cloud-Dienst.
   - **Logs:** Joblog-/SYSLOG-Meldungen als OTel-Logs.
-  - **SMF-Daten** (Typ 30/70-79) für Abrechnungs- und Langzeitsicht.
+  - weitere SMF-Typen, z. B. 70–79 (RMF-Langzeit), 14/15/17 (Datasets), 119.2 (TCP-Verbindungen).
 - IBM bietet eigene Wege: RMF-Grafana-Plugin (direkt auf den DDS, ohne OTel) und kommerziell
   z. B. IBM Z Common Data Provider / Z Operational Log and Data Analytics. Dieser Prototyp
   ist die herstellerneutrale, kostenlose Variante.

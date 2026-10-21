@@ -29,6 +29,11 @@ exporters:
     metrics_endpoint: http://prometheus:9090/api/v1/otlp/v1/metrics
     tls:
       insecure: true
+  # SMF-Sätze (smf/smf_otel.py) als Logs nach Loki (OTLP-Empfang unter /otlp)
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
   debug:
     verbosity: basic
 
@@ -38,3 +43,7 @@ service:
       receivers: [otlp, prometheus]
       processors: [batch]
       exporters: [otlphttp/prometheus, debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]
