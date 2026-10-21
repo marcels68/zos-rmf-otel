@@ -25,10 +25,10 @@
      "uid": "prometheus"
     },
     "query": {
-     "query": "label_values(rmf_cpu_utilization_percent, zos_sysplex_name)",
+     "query": "label_values(mvs_rmf_m3_mintime, sysplex)",
      "refId": "v"
     },
-    "definition": "label_values(rmf_cpu_utilization_percent, zos_sysplex_name)",
+    "definition": "label_values(mvs_rmf_m3_mintime, sysplex)",
     "includeAll": true,
     "multi": true,
     "current": {

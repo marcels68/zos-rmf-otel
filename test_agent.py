@@ -76,6 +76,7 @@ class ConvertTest(unittest.TestCase):
         attrs = {a["key"]: a["value"]["stringValue"] for a in pts[0]["attributes"]}
         self.assertEqual(attrs["zos.system.name"], "SYSA")
         self.assertEqual(attrs["rmf.resource.name"], "PLEX1")
+        self.assertEqual(attrs["zos.sysplex.name"], "PLEX1")
 
     def test_empty(self):
         r = {"metric": {"format": "single", "description": "x"}, "row": [{"col": ["", "NaN"]}]}
@@ -134,6 +135,33 @@ class EndToEndTest(unittest.TestCase):
 
     def test_xml_only_dds(self):
         self.run_agent(["--xml-only"])
+
+
+class MockTest(unittest.TestCase):
+    def test_auth_and_m3_format(self):
+        import base64
+        import urllib.error
+        import urllib.request
+        mock, url = start_mock("--auth", "TEST:geheim")
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen(url + "/metrics/m3", timeout=5)
+            self.assertEqual(cm.exception.code, 401)
+            cm.exception.close()
+            tok = base64.b64encode(b"TEST:geheim").decode()
+            req = urllib.request.Request(url + "/metrics/m3",
+                                         headers={"Authorization": "Basic " + tok})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                self.assertTrue(r.headers["Content-Type"].startswith("text/plain"))
+                text = r.read().decode()
+        finally:
+            mock.kill()
+            mock.wait()
+        line = next(x for x in text.splitlines() if x.startswith("mvs_rmf_m3_mintime{"))
+        name, value, ts = line.rsplit(" ", 2)
+        self.assertEqual(value, "100")
+        self.assertEqual(int(ts) % 100000, 0)  # ms, Ende des Intervalls
+        self.assertIn("# TYPE mvs_volume_io_percent gauge", text)  # Familie ohne Werte
 
 
 if __name__ == "__main__":

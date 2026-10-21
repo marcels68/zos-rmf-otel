@@ -6,17 +6,18 @@ PLEX1 mit den Systemen SYSA, SYSB, SYSC:
 
   GET /gpm/perform?resource=..&id=..       JSON wie neuere DDS (Accept: application/json)
   GET /gpm/perform.xml?resource=..&id=..   XML (ddsml) wie ältere DDS
-  GET /metrics/m3                          OpenMetrics wie DDS mit APAR OA67701;
+  GET /metrics/m3                          Prometheus-Textformat wie DDS mit APAR OA67701;
                                            Metrik- und Labelnamen wie in IBMs
                                            Grafana-Beispieldashboards (github.com/IBM/RMF)
 
-    mock_dds.py [--port 8803] [--mintime 100] [--xml-only]
+    mock_dds.py [--port 8803] [--mintime 100] [--xml-only] [--auth USER:PASS]
 
 Innerhalb eines Monitor-III-Intervalls (mintime) bleiben die Werte gleich, wie beim
 echten DDS. Das XML-Format ist nachgebildet, nicht gegen einen echten DDS geprüft.
 """
 
 import argparse
+import base64
 import json
 import math
 import random
@@ -60,6 +61,7 @@ def wave(t, seed, base, amp, period=900.0):
 class State:
     mintime = 100
     xml_only = False
+    auth = None  # erwarteter Authorization-Header oder None
 
     @classmethod
     def interval_end(cls):
@@ -133,13 +135,16 @@ def openmetrics():
     lines = []
 
     def fam(name, help_, samples):
-        lines.append(f"# TYPE {name} gauge")
+        # wie der echte DDS: HELP vor TYPE, Zeitstempel (ms) = Ende des Intervalls
         lines.append(f"# HELP {name} {help_}")
+        lines.append(f"# TYPE {name} gauge")
         for labels, v in samples:
             ls = ",".join(f'{k}="{val}"' for k, val in labels.items())
-            lines.append(f"{name}{{{ls}}} {v:.10g}")
+            lines.append(f"{name}{{{ls}}} {v:.10g} {t * 1000}")
 
     pl = {"sysplex": SYSPLEX}
+    # Der echte DDS meldet auch Familien ohne Werte (z. B. ohne Volume-Daten)
+    fam("mvs_volume_io_percent", "I/O Percent", [])
     fam("mvs_rmf_m3_mintime", "Monitor III MINTIME in seconds",
         [(pl, State.mintime)])
     frames = 4 * 1024 * 1024  # 16 GB realer Speicher je System
@@ -182,7 +187,6 @@ def openmetrics():
         [({**pl, "name": c}, size * wave(t, "cfa" + c, 0.4, 0.1)) for c in CFS])
     fam("mvs_cf_storage_utilized_percent", "CF storage utilized %",
         [({**pl, "name": c}, 100 * (1 - wave(t, "cfa" + c, 0.4, 0.1))) for c in CFS])
-    lines.append("# EOF")
     return "\n".join(lines) + "\n"
 
 
@@ -196,11 +200,16 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if State.auth and self.headers.get("Authorization") != State.auth:
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="DDS"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         u = urllib.parse.urlparse(self.path)
         q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
         if u.path == "/metrics/m3":
-            return self._send(200, "application/openmetrics-text; version=1.0.0; "
-                                   "charset=utf-8", openmetrics())
+            return self._send(200, "text/plain;charset=UTF-8", openmetrics())
         if u.path == "/gpm/perform" and not State.xml_only:
             resp = perform(q.get("resource", ",,SYSPLEX"), q.get("id", ""))
             return self._send(200, "application/json", json.dumps(resp))
@@ -218,8 +227,11 @@ def main():
     ap.add_argument("--port", type=int, default=8803)
     ap.add_argument("--mintime", type=int, default=100)
     ap.add_argument("--xml-only", action="store_true", help="wie ein älterer DDS ohne JSON")
+    ap.add_argument("--auth", metavar="USER:PASS", help="Basic-Auth verlangen (sonst 401)")
     a = ap.parse_args()
     State.mintime, State.xml_only = a.mintime, a.xml_only
+    if a.auth:
+        State.auth = "Basic " + base64.b64encode(a.auth.encode()).decode()
     print(f"mock DDS auf Port {a.port}, mintime {a.mintime}s", flush=True)
     ThreadingHTTPServer(("", a.port), Handler).serve_forever()
 

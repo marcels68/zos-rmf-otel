@@ -185,6 +185,8 @@ def report_to_metric(report, mdef, now_ns):
         common.append(attr("rmf.resource.type", res_type))
     if res_name:
         common.append(attr("rmf.resource.name", res_name))
+        if res_type == "SYSPLEX":
+            common.append(attr("zos.sysplex.name", res_name))
     row_key = mdef.get("row_attribute", "rmf.row")
     points = []
     for row in report.get("row") or []:
@@ -248,7 +250,7 @@ def load_config(path):
     otlp = cfg.setdefault("otlp", {})
     otlp["endpoint"] = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT",
                                       otlp.get("endpoint", "http://localhost:4318"))
-    cfg.setdefault("interval", 100)
+    cfg["interval"] = int(os.environ.get("RMF_INTERVAL", cfg.get("interval", 100)))
     cfg.setdefault("resource", {})
     if not cfg.get("metrics"):
         raise SystemExit("Konfiguration: Liste 'metrics' fehlt oder ist leer")

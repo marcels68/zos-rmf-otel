@@ -1,0 +1,40 @@
+# Collector für einen echten DDS. Zugang kommt aus der Umgebung (.env), nie aus dieser Datei:
+#   RMF_DDS_HOST=host:8803  RMF_DDS_USER=...  RMF_DDS_PASSWORD=...
+#   RMF_DDS_SCHEME=https (Standard; ohne AT-TLS: http)  RMF_SCRAPE_INTERVAL=60s (= MINTIME)
+#   RMF_SCRAPE_TIMEOUT=30s (<= RMF_SCRAPE_INTERVAL)
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: rmf-m3
+          scrape_interval: ${env:RMF_SCRAPE_INTERVAL:-60s}
+          scrape_timeout: ${env:RMF_SCRAPE_TIMEOUT:-30s}   # muss <= scrape_interval sein
+          metrics_path: /metrics/m3
+          scheme: ${env:RMF_DDS_SCHEME:-https}
+          basic_auth:
+            username: ${env:RMF_DDS_USER}
+            password: ${env:RMF_DDS_PASSWORD}
+          static_configs:
+            - targets: ["${env:RMF_DDS_HOST}"]
+
+processors:
+  batch: {}
+
+exporters:
+  otlphttp/prometheus:
+    metrics_endpoint: http://prometheus:9090/api/v1/otlp/v1/metrics
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [batch]
+      exporters: [otlphttp/prometheus, debug]

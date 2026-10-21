@@ -14,8 +14,13 @@ dann eigenes Repo, weil es mit GnuCOBOL nichts zu tun hat).
 - Demo `docker compose up -d`: mock_dds.py -> Collector 0.139 -> Prometheus 3.7 (OTLP-Empfang)
   -> Grafana 12.2. IBM-Dashboards (`fetch-ibm-dashboards.sh`) laufen unverändert.
 - Tests: `python3 -m unittest -v test_agent.py`.
-- **Gegen einen echten DDS noch NICHT getestet.** Erster Schritt: curl auf `/metrics/m3` und
-  `/gpm/perform?resource=,,SYSPLEX&id=8D0D60` (s. README).
+- Echter DDS (21.10.2026, Nutzer per curl): `/metrics/m3` über HTTPS mit Basic-Auth ok,
+  `text/plain`, Zeitstempel je Wert (ms), leere Familien, MINTIME 60. Die Cloud-Sitzung erreicht
+  Port 8803 dort NICHT (auch nach Freigabe; vermutlich Firewall) und der Sandbox-Proxy schickt
+  keine Basic-Auth über HTTP -> Tests gegen echte Systeme lokal beim Nutzer.
+- Echtbetrieb: `docker-compose.real.yaml` + `.env` (Vorlage `.env.example`, nie einchecken);
+  Probelauf gegen `mock_dds.py --auth` ok. Collector und Agent liefen noch nicht gegen den
+  echten DDS. Host-Namen echter Systeme nicht ins Repo.
 
 ## Arbeitsweise
 - Nutzer schreibt Deutsch; Antworten auf Deutsch.

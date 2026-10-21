@@ -8,9 +8,7 @@
     "endpoint": "http://otel-collector:4318"
   },
   "interval": 15,
-  "resource": {
-    "zos.sysplex.name": "PLEX1"
-  },
+  "resource": {},
   "metrics": [
     {
       "id": "8D0450",
