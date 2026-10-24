@@ -33,6 +33,17 @@ dann eigenes Repo, weil es mit GnuCOBOL nichts zu tun hat).
   Zeitstempel = Duplikat (deshalb System-ID in jeder Zeile), `max_chunk_age: 48h` für alte
   Dumps. SMF noch nicht mit echten Sätzen getestet.
 
+- **Java-Dienst `java/` (zsmf-otel, 24.10.2026, Zweig `java-smf`):** SMF live über SMF
+  Real-Time Interface (IFAMCON/IFAMGET/IFAMDSC; CNPB 106, GTPB 64, DSPB 24 Byte; Einsprung über
+  CVT-Kette +196/+376/+180/+4/8/12, OS-Linkage AMODE 64 per Inline-Asm " BASR 14,15" in
+  `native/zsmfrti.c`, ohne jni.h, JNI-Index 230 = GetDirectBufferAddress) und Nachladen über
+  IFASEXIT-DD (JZOS RecordReader per Reflection). Parser = Port von smf_otel.py, `parity.py`
+  vergleicht beide (gleich). `java/build.sh`: JAR, 35 Tests (RTI-Nachbau prüft Blöcke
+  byteweise), NativeSmoke, Parity. IBM-Doku per `https://www.ibm.com/docs/api/v1/content/<pfad>`
+  (Seiten liefern zeitweise 503 -> wiederholen). INMEM-Typen gehen NICHT mehr in
+  DEFAULTLSNAME -> zusätzlich LSNAME. Auf z/OS noch NICHT getestet (Dienstaufruf, Satzform im
+  IFAMGET-Puffer, RecordReader-RDW). Python-Zeitstempel jetzt ganzzahlig (vorher ~100 ns Fehler).
+
 ## Arbeitsweise
 - Nutzer schreibt Deutsch; Antworten auf Deutsch.
 - Host, User-ID und Kennwörter nie ins Repo schreiben; nur Platzhalter (`ddshost.example.com`,
