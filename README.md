@@ -187,6 +187,15 @@ Einstufung `zert.protection`: **unprotected** (keine Verschlüsselung erkannt), 
    (`loki/loki.yaml`, `max_chunk_age`); ältere Dumps zuerst bzw. in zeitlicher Reihenfolge
    einspielen. Satzlayout prüfen: `smf_otel.py smf.bin --hexdump 80`.
 
+### SMF direkt auf z/OS lesen (Java, ohne Dump)
+
+`java/` enthält **zsmf-otel**: einen Java-Dienst für z/OS, der SMF-Sätze **live** über das
+SMF Real-Time Interface (`IFAMCON`/`IFAMGET`, In-Memory-Ressource) oder zum **Nachladen** aus
+einem SMF-Log-Stream über den Subsystem-Exit `IFASEXIT` liest und per OTLP an den Collector
+schickt – ohne z/OSMF, Dump und Dateiübertragung. Gleiche Felder wie `smf_otel.py` (per
+Gleichheitstest geprüft), die Dashboards bleiben unverändert. Einrichtung, Bauen und Start:
+[java/README.md](java/README.md).
+
 ### Herkunft der Satzlayouts
 
 IBM-Tabellen aus dem SMF-Handbuch, wiedergegeben auf

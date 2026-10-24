@@ -35,6 +35,7 @@ from datetime import datetime, timedelta, timezone
 
 AGENT_NAME = "smf-otel"
 AGENT_VERSION = "0.1.0"
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 EBCDIC = "cp037"  # für Namen (A-Z, 0-9, @#$) gleich IBM-1047
 
 
@@ -535,7 +536,8 @@ def to_otlp(events):
     by_type = {}
     now = str(time.time_ns())
     for h, a, body in events:
-        ts = int(h["time"].timestamp() * 1e9)
+        d = h["time"] - EPOCH  # ganzzahlig rechnen (float verliert ~100 ns)
+        ts = (d.days * 86400 + d.seconds) * 10**9 + d.microseconds * 1000
         failure = a.get("racf.result") == "failure"
         by_type.setdefault(h["type"], []).append({
             "timeUnixNano": str(ts),

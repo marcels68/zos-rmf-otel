@@ -1,3 +1,4 @@
 grafana/dashboards/ibm/
 .env
 __pycache__/
+java/build/
